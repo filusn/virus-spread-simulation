@@ -1,3 +1,7 @@
+import time
+
+import altair as alt
+import pandas as pd
 import streamlit as st
 
 from controllers import Controller
@@ -30,8 +34,43 @@ params = dict(pop_num=pop_num, map_size=(map_size_x, map_size_y), init_infected=
 if lockdown:
     params['lockdown'] = lockdown_range
 
+
+
 cont = Controller(**params)
+
+
+df = pd.DataFrame({'step': [], 'number of people': [], 'health status': []})
+
+base_chart = alt.Chart(df).mark_line().encode(
+    x='step:Q',
+    y='number of people:Q',
+    color='health status:O'
+).properties(width=600, height=300)
+
+chart_plot = st.altair_chart(base_chart)
+
+def plot_animation(df):
+    chart = alt.Chart(df).mark_line().encode(
+        x='step:Q',
+        y='number of people:Q',
+        color=alt.Color('health status:O', scale=alt.Scale(domain=['0', '1', '2', '3', '4'], range=['#5ad45a', '#e6d800', '#b30000', '#1a53ff', '#000000'])) 
+    ).properties(width=600, height=300)
+
+    return chart    
+
+
+def plot(controller, steps, chart_plot):
+    df = pd.DataFrame({'step': [], 'number of people': [], 'health status': []})
+    controller.simulate(steps)
+    for idx in range(1, cont.step_number + 1):
+        for status in range(5):
+            df = df.append({'step': idx, 'number of people': cont.stats[str(status)][idx-1], 'health status': str(status)}, ignore_index=True)
+    for i in range(1, cont.step_number):
+        chart = plot_animation(df.loc[df['step'] <= i+1])
+        chart_plot = chart_plot.altair_chart(chart)
+        time.sleep(0.1)
+
 
 steps = st.number_input('Number of steps', 10, 1000, 100)
 
-start = st.button('Start', on_click=cont.simulate, args=(steps,))
+start = st.button('Start', on_click=plot, args=(cont, steps, chart_plot, ))
