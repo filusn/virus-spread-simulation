@@ -71,6 +71,7 @@ class Controller:
           person.update()
 
       self.update_stats()
+      self.step_number += 1
 
   def update_stats(self) -> None:
     self.stats['pos_x'].append([person.position[0] for person in self.population])
