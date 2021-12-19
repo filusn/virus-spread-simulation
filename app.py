@@ -68,7 +68,7 @@ def plot(controller, steps, chart_plot):
     for i in range(1, cont.step_number):
         chart = plot_animation(df.loc[df['step'] <= i+1])
         chart_plot = chart_plot.altair_chart(chart)
-        time.sleep(0.1)
+        time.sleep(0.05)
 
 
 steps = st.number_input('Number of steps', 10, 1000, 100)
