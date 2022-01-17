@@ -3,7 +3,7 @@ from typing import Tuple
 
 
 class Person:
-  def __init__(self, walking_range: Tuple[int, int], map_size: Tuple[int, int], 
+  def __init__(self, map_size: Tuple[int, int], walking_range: Tuple[float, float] = [-0.5, 0.5],
                incubation_period: int = 3, illness_period: int = 10,
                death_prob: int = 0.05, self_isolation: bool = False):
     self.incubation_period = incubation_period
