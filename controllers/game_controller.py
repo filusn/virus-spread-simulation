@@ -8,7 +8,7 @@ class Controller:
   def __init__(self, pop_num: int = 100, map_size: Tuple[int, int] = (100, 100),
                init_infected: int = 1, infection_dist: int = 1,
                infection_prob: int = 0.5, death_prob: int = 0.05,
-               walking_range: Tuple[int, int] = (-0.1, 0.1),
+               walking_range: Tuple[float, float] = (-0.1, 0.1),
                incubation_period: int = 3, illness_period: int = 10,
                self_isolation: bool = False, lockdown: Optional[Tuple[int, int]] = None) -> None:
     self.pop_num = pop_num
