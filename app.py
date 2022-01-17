@@ -1,3 +1,4 @@
+from codecs import ignore_errors
 import time
 
 import altair as alt
@@ -9,6 +10,8 @@ from controllers import Controller
 # Main
 st.title('Virus Spread Simulation')
 
+CHART_WIDTH = 600
+CHART_HEIGHT = 600
 
 # Sidebar # TODO: Add help to controls
 
@@ -20,7 +23,7 @@ init_infected = st.sidebar.slider('Initialy infected people', 1, 20, 1)
 infection_dist = st.sidebar.slider('Infection distance', 1, 20, 10)
 infection_prob = st.sidebar.slider('Infection probability', 0., 1., 0.5)
 death_probability = st.sidebar.slider('Death probability', 0., 1., 0.05)
-walking_range = st.sidebar.slider('Walking range', 0., 1., 0.1)
+walking_range = st.sidebar.slider('Walking range', 0., 10., 2.)
 incubation_period = st.sidebar.slider('Incubation period', 0, 5, 3)
 illness_period = st.sidebar.slider('Illness period', 1, 20, 10)
 lockdown = st.sidebar.checkbox('Lockdown', value=False)
@@ -37,40 +40,113 @@ if lockdown:
 
 
 cont = Controller(**params)
-
-
 df = pd.DataFrame({'step': [], 'number of people': [], 'health status': []})
 
 base_chart = alt.Chart(df).mark_line().encode(
-    x='step:Q',
-    y='number of people:Q',
-    color='health status:O'
-).properties(width=600, height=300)
+        x='step:Q',
+        y='number of people:Q',
+        color=alt.Color('health status:O', scale=alt.Scale(domain=['0', '1', '2', '3', '4'], range=['#5ad45a', '#e6d800', '#b30000', '#1a53ff', '#000000'])) 
+    ).properties(width=CHART_WIDTH + 200, height=CHART_HEIGHT - 200)
 
-chart_plot = st.altair_chart(base_chart)
+if 'cont' not in st.session_state:
+    st.session_state.cont = cont
+
+if 'df' not in st.session_state:
+    st.session_state.df = df
+
+if 'base_chart' not in st.session_state:
+    st.session_state.base_chart = base_chart
+
 
 def plot_animation(df):
     chart = alt.Chart(df).mark_line().encode(
         x='step:Q',
         y='number of people:Q',
         color=alt.Color('health status:O', scale=alt.Scale(domain=['0', '1', '2', '3', '4'], range=['#5ad45a', '#e6d800', '#b30000', '#1a53ff', '#000000'])) 
-    ).properties(width=600, height=300)
+    ).properties(width=CHART_WIDTH, height=CHART_HEIGHT)
 
     return chart    
 
-
-def plot(controller, steps, chart_plot):
-    df = pd.DataFrame({'step': [], 'number of people': [], 'health status': []})
+def simulate(controller, steps):
+    # current_step = controller.step_number
+    controller = st.session_state.cont
+    line_plot = st.session_state.line_plot
+    df = st.session_state.df
+    current_step = controller.step_number
     controller.simulate(steps)
-    for idx in range(1, cont.step_number + 1):
+    for idx in range(current_step, controller.step_number + 1):
+        new_df = pd.DataFrame({'step': [], 'number of people': [], 'health status': []})
         for status in range(5):
-            df = df.append({'step': idx, 'number of people': cont.stats[str(status)][idx-1], 'health status': str(status)}, ignore_index=True)
-    for i in range(1, cont.step_number):
-        chart = plot_animation(df.loc[df['step'] <= i+1])
-        chart_plot = chart_plot.altair_chart(chart)
-        time.sleep(0.05)
+            print(idx, len(controller.stats[str(status)]))
+            new_df = new_df.append(pd.Series({'step': idx, 'number of people': controller.stats[str(status)][idx-1], 'health status': str(status)}), ignore_index=True)
+        line_plot.add_rows(new_df)
+    st.session_state.cont = controller
+    st.session_state.line_plot = line_plot
+    st.session_state.df = df
+
+line_plot = st.altair_chart(base_chart)
+
+stacked_area_chart = alt.Chart(df).mark_area().encode(
+    x='step:Q',
+    y='number of people:Q',
+    color=alt.Color('health status:O', scale=alt.Scale(domain=['0', '1', '2', '3', '4'], range=['#5ad45a', '#e6d800', '#b30000', '#1a53ff', '#000000'])) 
+).properties(width=CHART_WIDTH + 200, height=CHART_HEIGHT - 200)    
+stacked_area_chart_st = st.altair_chart(stacked_area_chart)
 
 
-steps = st.number_input('Number of steps', 10, 1000, 100)
+donut_placeholder = st.empty()
+donut_chart = alt.Chart(df).mark_arc(innerRadius=50).encode(
+    theta='number of people:Q',
+    color=alt.Color('health status:O', scale=alt.Scale(domain=['0', '1', '2', '3', '4'], range=['#5ad45a', '#e6d800', '#b30000', '#1a53ff', '#000000'])) 
+).properties(width=CHART_WIDTH, height=CHART_HEIGHT)  
 
-start = st.button('Start', on_click=plot, args=(cont, steps, chart_plot, ))
+donut_placeholder.altair_chart(donut_chart)
+positions = pd.DataFrame({'pos_x': cont.stats['pos_x'][-1], 'pos_y': cont.stats['pos_y'][-1], 'health status': cont.stats['status'][-1]})
+positions_placeholder = st.empty()
+positions_chart = alt.Chart(positions).mark_point().encode(
+    x='pos_x:Q',
+    y='pos_y:Q',
+    color=alt.Color('health status:O', scale=alt.Scale(domain=['0', '1', '2', '3', '4'], range=['#5ad45a', '#e6d800', '#b30000', '#1a53ff', '#000000'])) 
+).properties(width=CHART_WIDTH, height=CHART_HEIGHT)
+positions_placeholder.altair_chart(positions_chart)
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    steps = st.number_input('Number of steps', 10, 1000, 100)
+with col2:
+    st.write('#')
+    start = st.button('Start')#, on_click=simulate, args=(cont, steps, ))
+with col3:
+    st.write('#')
+    reset = st.button('Reset')
+
+if start:
+    controller = st.session_state.cont
+    df = st.session_state.df
+    current_step = controller.step_number
+    controller.simulate(steps)
+    for idx in range(current_step, controller.step_number + 1):
+        new_df = pd.DataFrame({'step': [], 'number of people': [], 'health status': []})
+        print(type(controller.stats['status'][idx-1]))
+        positions_data = pd.DataFrame({'pos_x': controller.stats['pos_x'][idx-1], 'pos_y': controller.stats['pos_y'][idx-1], 'health status': [str(stat) for stat in controller.stats['status'][idx-1]]})
+        for status in range(5):
+            print(idx, len(controller.stats[str(status)]))
+            new_df = new_df.append(pd.Series({'step': idx, 'number of people': controller.stats[str(status)][idx-1], 'health status': str(status)}), ignore_index=True)
+        line_plot.add_rows(new_df)
+        stacked_area_chart_st.add_rows(new_df)
+        donut_chart = alt.Chart(new_df).mark_arc(innerRadius=50).encode(
+            theta='number of people:Q',
+            color=alt.Color('health status:O', scale=alt.Scale(domain=['0', '1', '2', '3', '4'], range=['#5ad45a', '#e6d800', '#b30000', '#1a53ff', '#000000'])) 
+        ).properties(width=CHART_WIDTH, height=CHART_HEIGHT)
+        donut_placeholder.altair_chart(donut_chart)
+
+        positions_chart = alt.Chart(positions_data).mark_point().encode(
+            x='pos_x:Q',
+            y='pos_y:Q',
+            color=alt.Color('health status:O', scale=alt.Scale(domain=['0', '1', '2', '3', '4'], range=['#5ad45a', '#e6d800', '#b30000', '#1a53ff', '#000000'])) 
+        ).properties(width=CHART_WIDTH, height=CHART_HEIGHT)
+        positions_placeholder.altair_chart(positions_chart)        
+    st.session_state.cont = controller
+    st.session_state.df = df
+
