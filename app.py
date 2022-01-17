@@ -88,7 +88,7 @@ line_plot = st.altair_chart(base_chart)
 
 stacked_area_chart = alt.Chart(df).mark_area().encode(
     x='step:Q',
-    y='number of people:Q',
+    y=alt.Y('number of people:Q', stack='normalize'),
     color=alt.Color('health status:O', scale=alt.Scale(domain=['0', '1', '2', '3', '4'], range=['#5ad45a', '#e6d800', '#b30000', '#1a53ff', '#000000'])) 
 ).properties(width=CHART_WIDTH + 200, height=CHART_HEIGHT - 200)    
 stacked_area_chart_st = st.altair_chart(stacked_area_chart)
@@ -128,10 +128,8 @@ if start:
     controller.simulate(steps)
     for idx in range(current_step, controller.step_number + 1):
         new_df = pd.DataFrame({'step': [], 'number of people': [], 'health status': []})
-        print(type(controller.stats['status'][idx-1]))
         positions_data = pd.DataFrame({'pos_x': controller.stats['pos_x'][idx-1], 'pos_y': controller.stats['pos_y'][idx-1], 'health status': [str(stat) for stat in controller.stats['status'][idx-1]]})
         for status in range(5):
-            print(idx, len(controller.stats[str(status)]))
             new_df = new_df.append(pd.Series({'step': idx, 'number of people': controller.stats[str(status)][idx-1], 'health status': str(status)}), ignore_index=True)
         line_plot.add_rows(new_df)
         stacked_area_chart_st.add_rows(new_df)
